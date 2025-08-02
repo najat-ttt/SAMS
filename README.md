@@ -10,31 +10,28 @@ SAMS is a cross-platform mobile application built using **Flutter** and **Fireba
 
 ## Features
 
-- **Teacher Role**: 
-  - Mark attendance for students
-  - Track attendance statistics for courses
+- **Teacher Role**:
+    - Mark attendance for students
+    - Track attendance statistics for courses
 - **Attendance summary charts**
 - **CSV/PDF export of attendance data**
-  
+
 ### Future Features
 - Department Head Role
 - Course Advisor Role
 - Student Role
 - Open for all Departments
 
-## Screenshots
+## App Preview
 
-| Login Page | Signup Page |
-|:----------:|:-----------:|
-| ![Login](screenshots/login.png) | ![Signup](screenshots/signup.png) |
+Here is a preview of the main screens and features of the SAMS application.
 
-| Forgot Password | Dashboard |
-|:---------------:|:---------:|
-| ![Forgot Password](screenshots/forgot_password.png) | ![Dashboard](screenshots/dashboard.png) |
+| Signup | Login | Dashboard | Take Attendance | Generate Reports |
+|:---:|:---:|:---:|:---:|:---:|
+| ![Signup Page](screenshots/Signup_Page.jpg) | ![Login Page](screenshots/Login_Page.jpg) | ![Dashboard Page](screenshots/Dashboard_Page.jpg) | ![Attendance Page](screenshots/Attendance_Page.jpg) | ![Reports Page](screenshots/Reports_Page.jpg) |
+| **Previous Sessions** | **Edit Previous Sessions** | **Profile** | **Schedule** | **Forgot Password** |
+| ![Previous Sessions Page](screenshots/Previous_Sessions_Page.jpg) | ![Edit Previous Attendance Page](screenshots/Edit_Previous_Attendance_Page.jpg) | ![Profile Page](screenshots/Profile_Page.jpg) | ![Schedule Page](screenshots/Schedule_Page.jpg) | ![Forgot Password Page](screenshots/Forgot_Password_Page.jpg) |
 
-| Attendance Page | Reports Page |
-|:---------------:|:------------:|
-| ![Attendance](screenshots/attendance.png) | ![Reports](screenshots/reports.png) |
 
 ## Tech Stack
 
@@ -94,8 +91,8 @@ flutter run
 
 - Ensure your Flutter SDK version matches the project requirement (**`sdk: ^3.7.0`**)
 - If you encounter Firebase-related build errors:
-  - Verify that `google-services.json` is correctly placed inside `android/app/`
-  - Verify that `GoogleService-Info.plist` is correctly placed inside `ios/Runner/`
+    - Verify that `google-services.json` is correctly placed inside `android/app/`
+    - Verify that `GoogleService-Info.plist` is correctly placed inside `ios/Runner/`
 - Run the following command to check if your development environment is properly set up:
 
 ```bash
@@ -130,11 +127,11 @@ See the [LICENSE](LICENSE) file for more details.
 
 - Thanks to **Flutter** for the awesome UI framework
 - Thanks to **Firebase** for providing scalable backend services
-- Special thanks to **[Prof. Dr. Boshir Ahmed](https://www.cse.ruet.ac.bd/boshir)** sir for guidance and supervision
+- Special thanks to **[Prof. Dr. Boshir Ahmed](https://www.cse.ruet.ac.bd/boshir)** ([LinkedIn](https://www.linkedin.com/in/dr-boshir-ahmed-b830621b4)) sir for guidance and supervision
 
 ## Contact
 
-**[Sheikh Siam Najat](https://www.linkedin.com/in/sheikhsiamnajat/)** 
+**[Sheikh Siam Najat](https://www.linkedin.com/in/sheikhsiamnajat/)**
 
 🎓 **[CSE @ RUET](https://www.cse.ruet.ac.bd/)**
 
