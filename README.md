@@ -26,16 +26,11 @@ SAMS is a cross-platform mobile application built using **Flutter** and **Fireba
 
 Here is a preview of the main screens and features of the SAMS application.
 
-| Onboarding & Home | Core Feature: Attendance | Other Features |
-|:-----------------------------------------------------:|:----------------------------------------------------------------:|:-----------------------------------------------:|
-| **Signup Page** | **Attendance System** | **Attendance Reports** |
-| ![Signup Page](screenshots/Signup_Page.jpg) | ![Attendance Page](screenshots/Attendance_Page.jpg) | ![Reports Page](screenshots/Reports_Page.jpg) |
-| **Login Page** | **List of Previous Sessions** | **User Profile** |
-| ![Login Page](screenshots/Login_Page.jpg) | ![Previous Sessions Page](screenshots/Previous_Sessions_Page.jpg) | ![Profile Page](screenshots/Profile_Page.jpg) |
-| **Dashboard** | **Editing Past Attendance** | **Class Schedule** |
-| ![Dashboard Page](screenshots/Dashboard_Page.jpg) | ![Edit Previous Attendance Page](screenshots/Edit_Previous_Attendance_Page.jpg) | ![Schedule Page](screenshots/Schedule_Page.jpg) |
-| **Forgot Password** | | |
-| ![Forgot Password Page](screenshots/Forgot_Password_Page.jpg) | | |
+| Signup | Login | Dashboard | Take Attendance | Generate Reports |
+|:---:|:---:|:---:|:---:|:---:|
+| ![Signup Page](screenshots/Signup_Page.jpg) | ![Login Page](screenshots/Login_Page.jpg) | ![Dashboard Page](screenshots/Dashboard_Page.jpg) | ![Attendance Page](screenshots/Attendance_Page.jpg) | ![Reports Page](screenshots/Reports_Page.jpg) |
+| **Previous Sessions** | **Edit Previous Sessions** | **Profile** | **Schedule** | **Forgot Password** |
+| ![Previous Sessions Page](screenshots/Previous_Sessions_Page.jpg) | ![Edit Previous Attendance Page](screenshots/Edit_Previous_Attendance_Page.jpg) | ![Profile Page](screenshots/Profile_Page.jpg) | ![Schedule Page](screenshots/Schedule_Page.jpg) | ![Forgot Password Page](screenshots/Forgot_Password_Page.jpg) |
 
 
 ## Tech Stack
