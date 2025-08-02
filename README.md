@@ -96,7 +96,7 @@ flutter run
 - Run the following command to check if your development environment is properly set up:
 
 ```bash
-flutter doctor
+ flutter doctor
 ```
 
 ## Contributing
