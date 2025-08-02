@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'profile_page.dart';
 import 'schedule_page.dart';
 import '../login_page/login_page.dart';
+import 'payment_page.dart';
 
 class StudentDashboardPage extends StatelessWidget {
   final String name;
@@ -160,6 +161,22 @@ class StudentDashboardPage extends StatelessWidget {
                       fontSize: fontSize,
                       cardPadding: cardPadding,
                     ),
+                    _buildDashboardCard(
+                      icon: Icons.payment,
+                      title: "Pay Fees",
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => PaymentPage(),
+                          ),
+                        );
+                      },
+                      cardSize: cardSize,
+                      iconSize: iconSize,
+                      fontSize: fontSize,
+                      cardPadding: cardPadding,
+                    ),
                   ],
                 ),
               ),
@@ -217,4 +234,3 @@ class StudentDashboardPage extends StatelessWidget {
     );
   }
 }
-
