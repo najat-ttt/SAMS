@@ -127,7 +127,7 @@ See the [LICENSE](LICENSE) file for more details.
 
 - Thanks to **Flutter** for the awesome UI framework
 - Thanks to **Firebase** for providing scalable backend services
-- Special thanks to **[Prof. Dr. Boshir Ahmed]([https://www.cse.ruet.ac.bd/boshir](https://www.linkedin.com/in/dr-boshir-ahmed-b830621b4))** sir for guidance and supervision
+- Special thanks to **[Prof. Dr. Boshir Ahmed](https://www.cse.ruet.ac.bd/boshir)** ([LinkedIn](https://www.linkedin.com/in/dr-boshir-ahmed-b830621b4)) sir for guidance and supervision
 
 ## Contact
 
