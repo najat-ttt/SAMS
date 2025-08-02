@@ -127,12 +127,14 @@ See the [LICENSE](LICENSE) file for more details.
 
 - Thanks to **Flutter** for the awesome UI framework
 - Thanks to **Firebase** for providing scalable backend services
-- Special thanks to **[Prof. Dr. Boshir Ahmed](https://www.cse.ruet.ac.bd/boshir)** ([LinkedIn](https://www.linkedin.com/in/dr-boshir-ahmed-b830621b4)) sir for guidance and supervision
+- Special thanks to **[Prof. Dr. Boshir Ahmed](https://www.linkedin.com/in/dr-boshir-ahmed-b830621b4)** sir for guidance and supervision
 
 ## Contact
 
-**[Sheikh Siam Najat](https://www.linkedin.com/in/sheikhsiamnajat/)**
+**[Sheikh Siam Najat](www.linkedin.com/in/sheikh-siam-najat-82584b281)**
 
-🎓 **[CSE @ RUET](https://www.cse.ruet.ac.bd/)**
+**ID: 2203146**
 
-**Email**: [siamnajat02@gmail.com](mailto:siamnajat02@gmail.com)
+**[CSE @ RUET](https://www.cse.ruet.ac.bd/)**
+
+**Email**: [siamnajat02@gmail.com](mailto:siamnajat02@gmail.com), [2203146@student.ruet.ac.bd](mailto:2203146@student.ruet.ac.bd)
