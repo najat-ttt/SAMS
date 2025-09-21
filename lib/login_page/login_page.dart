@@ -44,8 +44,17 @@ class _LoginPageState extends State<LoginPage> {
 
         User user = userCredential.user!;
 
-        // Check if email is verified
-        if (!user.emailVerified) {
+        // Fetch user role from Firestore first to check if it's the default admin
+        DocumentSnapshot userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+
+        String role = userDoc.exists ? userDoc.get('role') : 'Course Teacher';
+        bool isDefaultAdmin = userDoc.exists ? (userDoc.get('isDefaultAdmin') ?? false) : false;
+
+        // Check if email is verified (skip verification check for default admin)
+        if (!user.emailVerified && !isDefaultAdmin) {
           setState(() {
             _isLoading = false;
           });
@@ -56,13 +65,10 @@ class _LoginPageState extends State<LoginPage> {
           return;
         }
 
-        // Fetch user role from Firestore
-        DocumentSnapshot userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .get();
-
-        String role = userDoc.exists ? userDoc.get('role') : 'Course Teacher';
+        // If this is the default admin and email is not verified, skip verification requirement
+        if (isDefaultAdmin && !user.emailVerified) {
+          print("Default admin login - bypassing email verification requirement");
+        }
 
         print("Login successful. Navigating to Dashboard...");
 

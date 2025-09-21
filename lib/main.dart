@@ -9,46 +9,14 @@ import 'profile_page/course_teacher_dashboard_page.dart';
 import 'profile_page/course_advisor_dashboard_page.dart';
 import 'profile_page/department_head_dashboard_page.dart';
 import 'profile_page/student_dashboard_page.dart';
+import 'profile_page/admin_dashboard_page.dart';
+import 'config/firebase_config.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Platform specific Firebase initialization
-  if (kIsWeb) {
-    // Web-specific Firebase configuration
-    await Firebase.initializeApp(
-      options: const FirebaseOptions(
-        apiKey: "AIzaSyAZk-0O762ba30uaKg4Z8mKVD10cV0okoM",
-        appId: "1:241623526441:web:af145909d6302fb64f8038",
-        messagingSenderId: "241623526441",
-        projectId: "sams8-3-2025",
-        storageBucket: "sams8-3-2025.firebasestorage.app",
-        authDomain: "sams8-3-2025.firebaseapp.com",
-      ),
-    );
-  } else if (Platform.isWindows) {
-    // Windows-specific Firebase configuration
-    await Firebase.initializeApp(
-      options: const FirebaseOptions(
-        apiKey: "AIzaSyAZk-0O762ba30uaKg4Z8mKVD10cV0okoM",
-        appId: "1:241623526441:windows:af145909d6302fb64f8038",
-        messagingSenderId: "241623526441",
-        projectId: "sams8-3-2025",
-        storageBucket: "sams8-3-2025.firebasestorage.app",
-      ),
-    );
-  } else {
-    // Default (Android/iOS) Firebase configuration
-    await Firebase.initializeApp(
-      options: const FirebaseOptions(
-        apiKey: "AIzaSyAZk-0O762ba30uaKg4Z8mKVD10cV0okoM",
-        appId: "1:241623526441:android:af145909d6302fb64f8038",
-        messagingSenderId: "241623526441",
-        projectId: "sams8-3-2025",
-        storageBucket: "sams8-3-2025.firebasestorage.app",
-      ),
-    );
-  }
+  // Initialize Firebase using secure configuration
+  await FirebaseConfig.initializeFirebase();
 
   runApp(const MyApp());
 }
@@ -91,36 +59,38 @@ class LoginPageWrapper extends StatelessWidget {
         if (snapshot.hasData) {
           // User is signed in
           User user = snapshot.data!;
-          // Check if email is verified
-          if (user.emailVerified) {
-            // Fetch user role from Firestore
-            return FutureBuilder<DocumentSnapshot>(
-              future: FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(user.uid)
-                  .get(),
-              builder: (context, firestoreSnapshot) {
-                if (firestoreSnapshot.connectionState == ConnectionState.waiting) {
-                  return const Scaffold(
-                    body: Center(
-                      child: CircularProgressIndicator(),
+
+          // Fetch user role from Firestore first to check if it's the default admin
+          return FutureBuilder<DocumentSnapshot>(
+            future: FirebaseFirestore.instance
+                .collection('users')
+                .doc(user.uid)
+                .get(),
+            builder: (context, firestoreSnapshot) {
+              if (firestoreSnapshot.connectionState == ConnectionState.waiting) {
+                return const Scaffold(
+                  body: Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                );
+              }
+
+              if (firestoreSnapshot.hasError) {
+                return Scaffold(
+                  body: Center(
+                    child: Text(
+                      "Error loading user data: ${firestoreSnapshot.error}",
+                      style: const TextStyle(fontSize: 18, color: Colors.blueGrey),
                     ),
-                  );
-                }
+                  ),
+                );
+              }
 
-                if (firestoreSnapshot.hasError) {
-                  return Scaffold(
-                    body: Center(
-                      child: Text(
-                        "Error loading user data: ${firestoreSnapshot.error}",
-                        style: const TextStyle(fontSize: 18, color: Colors.blueGrey),
-                      ),
-                    ),
-                  );
-                }
+              String role = firestoreSnapshot.data?.get('role') ?? 'Course Teacher';
+              bool isDefaultAdmin = firestoreSnapshot.data?.get('isDefaultAdmin') ?? false;
 
-                String role = firestoreSnapshot.data?.get('role') ?? 'Course Teacher';
-
+              // Check if email is verified (skip verification check for default admin)
+              if (user.emailVerified || isDefaultAdmin) {
                 // Role-based dashboard navigation
                 if (role == 'Course Teacher') {
                   return CourseTeacherDashboardPage(
@@ -146,6 +116,8 @@ class LoginPageWrapper extends StatelessWidget {
                     email: user.email ?? "",
                     role: role,
                   );
+                } else if (role == 'Admin') {
+                  return const AdminDashboardPage();
                 } else {
                   // Default fallback
                   return StudentDashboardPage(
@@ -154,58 +126,58 @@ class LoginPageWrapper extends StatelessWidget {
                     role: role,
                   );
                 }
-              },
-            );
-          } else {
-            // If email is not verified, prompt the user to verify it
-            return Scaffold(
-              body: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text(
-                      "Please verify your email to continue.",
-                      style: TextStyle(fontSize: 18, color: Colors.blueGrey),
-                    ),
-                    const SizedBox(height: 20),
-                    ElevatedButton(
-                      onPressed: () async {
-                        // Resend verification email
-                        await user.sendEmailVerification();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text("Verification email resent! Please check your inbox."),
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        elevation: 2.0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12.0),
+              } else {
+                // If email is not verified and not default admin, prompt verification
+                return Scaffold(
+                  body: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text(
+                          "Please verify your email to continue.",
+                          style: TextStyle(fontSize: 18, color: Colors.blueGrey),
                         ),
-                      ),
-                      child: const Text("Resend Verification Email"),
+                        const SizedBox(height: 20),
+                        ElevatedButton(
+                          onPressed: () async {
+                            // Resend verification email
+                            await user.sendEmailVerification();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text("Verification email resent! Please check your inbox."),
+                              ),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            elevation: 2.0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12.0),
+                            ),
+                          ),
+                          child: const Text("Resend Verification Email"),
+                        ),
+                        const SizedBox(height: 10),
+                        TextButton(
+                          onPressed: () async {
+                            // Sign out the user and redirect to LoginPage
+                            await FirebaseAuth.instance.signOut();
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(builder: (context) => const LoginPage()),
+                            );
+                          },
+                          child: const Text(
+                            "Sign Out",
+                            style: TextStyle(fontSize: 16, color: Colors.blueGrey),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 10),
-                    TextButton(
-                      onPressed: () async {
-                        // Sign out the user and redirect to LoginPage
-                        await FirebaseAuth.instance.signOut();
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(builder: (context) => const LoginPage()),
-                        );
-                      },
-                      child: const Text(
-                        "Sign Out",
-                        style: TextStyle(fontSize: 16, color: Colors.blueGrey),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }
+                  ),
+                );
+              }
+            },
+          );
         } else {
           // User is not signed in, show LoginPage
           return const LoginPage();
