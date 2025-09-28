@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import '../services/course_service.dart';
 
 class AttendancePage extends StatefulWidget {
   const AttendancePage({super.key});
@@ -12,6 +13,8 @@ class AttendancePage extends StatefulWidget {
 class _AttendancePageState extends State<AttendancePage> {
   String? selectedCourse;
   String? selectedSection;
+  final List<String> series = ["20", "21", "22", "23", "24"]; // Add series options
+  String? selectedSeries; // Add series selection
   bool isLoading = false;
   String? currentSessionId;
   DateTime selectedDate = DateTime.now();
@@ -19,21 +22,22 @@ class _AttendancePageState extends State<AttendancePage> {
   // Add a flag to track if we're in edit mode
   bool isEditingPreviousSession = false;
 
-  final List<String> courses = [
-    "Digital Logic Design",
-    "Discrete Mathematics",
-    "Electrical and Electronic Engineering",
-    "Humanities",
-    "Mathematics"
-  ];
+  // Replace hardcoded courses with dynamic list from Firestore
+  List<String> courses = [];
+  bool isLoadingCourses = true;
 
   final List<String> sections = ["A", "B", "C"];
-
   List<Map<String, dynamic>> students = [];
   // Add a list to store previous sessions
   List<Map<String, dynamic>> previousSessions = [];
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchCourses(); // Fetch courses from Firestore on init
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -168,6 +172,34 @@ class _AttendancePageState extends State<AttendancePage> {
                                   },
                                 ),
                               ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                flex: 2,
+                                child: DropdownButtonFormField<String>(
+                                  value: selectedSeries,
+                                  isExpanded: true,
+                                  decoration: InputDecoration(
+                                    labelText: "Select Series",
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12.0),
+                                    ),
+                                    contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                  ),
+                                  style: TextStyle(fontSize: dropdownFontSize, color: Colors.black),
+                                  items: series.map((series) {
+                                    return DropdownMenuItem(
+                                      value: series,
+                                      child: Text(series),
+                                    );
+                                  }).toList(),
+                                  onChanged: isEditingPreviousSession ? null : (value) {
+                                    setState(() {
+                                      selectedSeries = value;
+                                      _fetchStudents();
+                                    });
+                                  },
+                                ),
+                              ),
                             ],
                           ),
                         ],
@@ -219,20 +251,13 @@ class _AttendancePageState extends State<AttendancePage> {
                       ),
                     ),
                   // Student List
-                  if (isLoading)
+                  if (isLoading || isLoadingCourses)
                     const Expanded(
                       child: Center(child: CircularProgressIndicator()),
                     )
-                  else if (selectedCourse != null && selectedSection != null)
+                  else if (students.isNotEmpty)
                     Expanded(
-                      child: students.isEmpty
-                          ? const Center(
-                        child: Text(
-                          "No students found in this section",
-                          style: TextStyle(fontSize: 16, color: Colors.grey),
-                        ),
-                      )
-                          : ListView.builder(
+                      child: ListView.builder(
                         itemCount: students.length,
                         itemBuilder: (context, index) {
                           final student = students[index];
@@ -240,11 +265,20 @@ class _AttendancePageState extends State<AttendancePage> {
                         },
                       ),
                     )
+                  else if (selectedSection != null && selectedSeries != null)
+                    const Expanded(
+                      child: Center(
+                        child: Text(
+                          "No students found in this section and series combination",
+                          style: TextStyle(fontSize: 16, color: Colors.grey),
+                        ),
+                      ),
+                    )
                   else
                     const Expanded(
                       child: Center(
                         child: Text(
-                          "Please select a course and section to begin",
+                          "Please select section and series to load students",
                           style: TextStyle(fontSize: 16, color: Colors.grey),
                         ),
                       ),
@@ -373,7 +407,12 @@ class _AttendancePageState extends State<AttendancePage> {
   }
 
   Future<void> _fetchStudents() async {
-    if (selectedSection == null) return;
+    if (selectedSection == null || selectedSeries == null) {
+      setState(() {
+        students.clear();
+      });
+      return;
+    }
 
     setState(() {
       isLoading = true;
@@ -381,32 +420,136 @@ class _AttendancePageState extends State<AttendancePage> {
     });
 
     try {
-      // Only fetch students, no attendance data
+      print('Fetching students from section-wise structure: students/$selectedSection/section_students for series: $selectedSeries');
+
+      // Use the section-wise structure: students/{section}/section_students
       final querySnapshot = await _firestore
-          .collection('students')
+          .collection('student') // Main collection - FIXED: was 'student', should be 'students'
+          .doc(selectedSection) // Section document (A, B, C)
+          .collection('section_students') // Students subcollection for this section
+          .orderBy('roll')
+          .get();
+
+      print('Found ${querySnapshot.docs.length} students in section $selectedSection');
+
+      if (querySnapshot.docs.isEmpty) {
+        setState(() {
+          students = [];
+        });
+
+        // If no students in section-wise structure, try fallback to flat structure
+        print('No students found in section-wise structure, trying flat structure...');
+        await _fetchStudentsFromFlatStructure();
+        return;
+      }
+
+      // Filter by series if the roll number pattern matches
+      final filteredDocs = querySnapshot.docs.where((doc) {
+        final data = doc.data();
+        final rollStr = data['roll']?.toString() ?? '';
+        return selectedSeries != null && rollStr.startsWith(selectedSeries!);
+      }).toList();
+
+      if (filteredDocs.isEmpty) {
+        setState(() {
+          students = [];
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("No students found for Series $selectedSeries, Section $selectedSection")),
+        );
+        return;
+      }
+
+      students = filteredDocs.map((doc) {
+        final data = doc.data();
+        print('Student data: $data'); // Debug print
+        return {
+          "rollNo": data['roll'] ?? 0,
+          "id": data['roll']?.toString() ?? '0',
+          "name": data['name'] ?? data['studentName'] ?? 'Unknown', // Handle both field names
+          "status": "Absent",
+          "documentId": doc.id,
+          "section": data['section'] ?? selectedSection,
+        };
+      }).toList();
+
+      print('Loaded ${students.length} students from section-wise structure');
+      setState(() {});
+
+    } catch (e) {
+      print('Error fetching students from section-wise structure: $e'); // Debug print
+      print('Trying fallback to flat structure...');
+      await _fetchStudentsFromFlatStructure();
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  // Fallback method to fetch from flat structure for backward compatibility
+  Future<void> _fetchStudentsFromFlatStructure() async {
+    try {
+      print('Fetching students from flat structure for section: $selectedSection and series: $selectedSeries');
+
+      final querySnapshot = await _firestore
+          .collection('student') // Flat collection
           .where('section', isEqualTo: selectedSection)
           .orderBy('roll')
           .get();
 
-      students = querySnapshot.docs.map((doc) {
+      print('Found ${querySnapshot.docs.length} students in flat structure');
+
+      if (querySnapshot.docs.isEmpty) {
+        setState(() {
+          students = [];
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("No students found for Section $selectedSection")),
+        );
+        return;
+      }
+
+      // Filter by series if the roll number pattern matches
+      final filteredDocs = querySnapshot.docs.where((doc) {
         final data = doc.data();
+        final rollStr = data['roll']?.toString() ?? '';
+        return selectedSeries != null && rollStr.startsWith(selectedSeries!);
+      }).toList();
+
+      if (filteredDocs.isEmpty) {
+        setState(() {
+          students = [];
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("No students found for Series $selectedSeries, Section $selectedSection")),
+        );
+        return;
+      }
+
+      students = filteredDocs.map((doc) {
+        final data = doc.data();
+        print('Student data from flat structure: $data');
         return {
           "rollNo": data['roll'] ?? 0,
           "id": data['roll']?.toString() ?? '0',
-          "name": data['name'] ?? 'Unknown',
+          "name": data['name'] ?? data['studentName'] ?? 'Unknown', // Handle both field names
           "status": "Absent",
           "documentId": doc.id,
+          "section": data['section'] ?? selectedSection,
         };
       }).toList();
 
+      print('Loaded ${students.length} students from flat structure');
       setState(() {});
+
     } catch (e) {
+      print('Error fetching students from flat structure: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error fetching students: $e")),
       );
-    } finally {
       setState(() {
-        isLoading = false;
+        students = [];
       });
     }
   }
@@ -753,23 +896,77 @@ class _AttendancePageState extends State<AttendancePage> {
     });
 
     try {
-      // Fetch students and attendance in parallel for speed
-      final studentsFuture = _firestore
-          .collection('students')
-          .where('section', isEqualTo: selectedSection)
-          .orderBy('roll')
-          .get();
+      // Load students from the section-wise structure for the selected section
+      List<Map<String, dynamic>> allStudents = [];
+
+      // First try to get students from section-wise structure
+      try {
+        final studentsSnapshot = await _firestore
+            .collection('students') // FIXED: was 'student', should be 'students'
+            .doc(selectedSection)
+            .collection('section_students')
+            .orderBy('roll')
+            .get();
+
+        allStudents = studentsSnapshot.docs.map((doc) {
+          final data = doc.data();
+          return {
+            "rollNo": data['roll'] ?? 0,
+            "id": data['roll']?.toString() ?? '0',
+            "name": data['name'] ?? data['studentName'] ?? 'Unknown',
+            "status": "Absent",
+            "documentId": doc.id,
+          };
+        }).toList();
+
+        print('Loaded ${allStudents.length} students from section-wise structure for editing');
+      } catch (e) {
+        print('Error loading from section-wise structure, trying fallback: $e');
+
+        // Fallback to checking all series in the old structure
+        for (String seriesYear in series) {
+          final seriesDoc = 'series-${seriesYear}';
+          try {
+            final studentsSnapshot = await _firestore
+                .collection('student')
+                .doc(seriesDoc)
+                .collection('students')
+                .where('section', isEqualTo: selectedSection)
+                .orderBy('roll')
+                .get();
+
+            final seriesStudents = studentsSnapshot.docs.map((doc) {
+              final data = doc.data();
+              return {
+                "rollNo": data['roll'] ?? 0,
+                "id": data['roll']?.toString() ?? '0',
+                "name": data['studentName'] ?? data['name'] ?? 'Unknown',
+                "status": "Absent",
+                "documentId": doc.id,
+                "series": seriesYear,
+              };
+            }).toList();
+
+            allStudents.addAll(seriesStudents);
+          } catch (seriesError) {
+            print('Error loading series $seriesYear: $seriesError');
+          }
+        }
+      }
+
+      // Sort by roll number
+      allStudents.sort((a, b) => (a['rollNo'] as int).compareTo(b['rollNo'] as int));
+
+      // Load attendance data
       final dateStr = DateFormat('dd-MM-yyyy').format(currentSessionDate!);
-      final rollsFuture = _firestore
+      final rollsSnapshot = await _firestore
           .collection('attendance_records')
           .doc(dateStr)
           .collection('sections')
           .doc(selectedSection)
           .collection('rolls')
           .get();
-      final results = await Future.wait([studentsFuture, rollsFuture]);
-      final studentsSnapshot = results[0] as QuerySnapshot;
-      final rollsSnapshot = results[1] as QuerySnapshot;
+
       // Build a map of rollNo to status for this course
       final Map<String, String> rollStatus = {};
       // Fetch all course docs in parallel for speed
@@ -782,17 +979,14 @@ class _AttendancePageState extends State<AttendancePage> {
         });
       }).toList();
       await Future.wait(courseDocFutures);
-      students = studentsSnapshot.docs.map((doc) {
-        final data = doc.data() as Map<String, dynamic>;
-        final rollNo = data['roll']?.toString() ?? '0';
-        return {
-          "rollNo": data['roll'] ?? 0,
-          "id": rollNo,
-          "name": data['name'] ?? 'Unknown',
-          "status": rollStatus[rollNo] ?? 'Absent',
-          "documentId": doc.id,
-        };
-      }).toList();
+
+      // Update students with attendance status
+      for (var student in allStudents) {
+        final rollNo = student['id'];
+        student['status'] = rollStatus[rollNo] ?? 'Absent';
+      }
+
+      students = allStudents;
       setState(() {});
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Previous session loaded for editing")),
@@ -872,6 +1066,34 @@ class _AttendancePageState extends State<AttendancePage> {
     } finally {
       setState(() {
         isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _fetchCourses() async {
+    setState(() {
+      isLoadingCourses = true;
+    });
+
+    try {
+      // Fetch courses from Firestore using CourseService
+      final fetchedCourses = await CourseService.getCourseNames();
+
+      setState(() {
+        courses = fetchedCourses;
+      });
+    } catch (e) {
+      print("Error fetching courses: $e");
+      // Fallback to empty list or show error
+      setState(() {
+        courses = [];
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error fetching courses: $e")),
+      );
+    } finally {
+      setState(() {
+        isLoadingCourses = false;
       });
     }
   }

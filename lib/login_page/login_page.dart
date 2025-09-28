@@ -5,6 +5,7 @@ import '../profile_page/course_teacher_dashboard_page.dart';
 import '../profile_page/course_advisor_dashboard_page.dart';
 import '../profile_page/department_head_dashboard_page.dart';
 import '../profile_page/student_dashboard_page.dart';
+import '../profile_page/admin_dashboard_page.dart'; // Import AdminDashboardPage
 import 'signup_page.dart';
 import 'forgot_password_page.dart';
 
@@ -50,8 +51,71 @@ class _LoginPageState extends State<LoginPage> {
             .doc(user.uid)
             .get();
 
-        String role = userDoc.exists ? userDoc.get('role') : 'Course Teacher';
-        bool isDefaultAdmin = userDoc.exists ? (userDoc.get('isDefaultAdmin') ?? false) : false;
+        if (!userDoc.exists) {
+          setState(() {
+            _isLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("User data not found. Please contact admin.")),
+          );
+          await FirebaseAuth.instance.signOut();
+          return;
+        }
+
+        Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
+        String role = userData['role'] ?? 'Course Teacher';
+        String approvalStatus = userData['approvalStatus'] ?? 'approved';
+        bool isActive = userData['isActive'] ?? true;
+        bool isDefaultAdmin = userData['isDefaultAdmin'] ?? false;
+
+        // Check if account needs approval and is not approved yet
+        final teacherRoles = ['Course Teacher', 'Course Advisor', 'Department Head'];
+        if (teacherRoles.contains(role) && approvalStatus == 'pending' && !isDefaultAdmin) {
+          setState(() {
+            _isLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Your $role account is pending admin approval. Please wait for approval."),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 5),
+            ),
+          );
+          await FirebaseAuth.instance.signOut();
+          return;
+        }
+
+        // Check if account is rejected
+        if (approvalStatus == 'rejected') {
+          setState(() {
+            _isLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Your account has been rejected. Please contact admin for more information."),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 5),
+            ),
+          );
+          await FirebaseAuth.instance.signOut();
+          return;
+        }
+
+        // Check if account is inactive
+        if (!isActive && !isDefaultAdmin) {
+          setState(() {
+            _isLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Your account has been deactivated. Please contact admin."),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 5),
+            ),
+          );
+          await FirebaseAuth.instance.signOut();
+          return;
+        }
 
         // Check if email is verified (skip verification check for default admin)
         if (!user.emailVerified && !isDefaultAdmin) {
@@ -98,6 +162,8 @@ class _LoginPageState extends State<LoginPage> {
             email: user.email ?? "",
             role: role,
           );
+        } else if (role == 'Admin') {
+          destination = const AdminDashboardPage();
         } else {
           destination = CourseTeacherDashboardPage(
             name: user.displayName ?? "User",

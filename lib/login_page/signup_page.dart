@@ -304,21 +304,35 @@ class _SignupPageState extends State<SignupPage> {
         await user.updateDisplayName(nameController.text.trim());
 
         // Save user info and role to Firestore
+        final teacherRoles = ['Course Teacher', 'Course Advisor', 'Department Head'];
+        final needsApproval = teacherRoles.contains(_selectedRole);
+
         await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
           'uid': user.uid,
           'name': nameController.text.trim(),
           'email': emailController.text.trim(),
           'role': _selectedRole,
+          'approvalStatus': needsApproval ? 'pending' : 'approved',
+          'requestedAt': needsApproval ? FieldValue.serverTimestamp() : null,
+          'approvedAt': needsApproval ? null : FieldValue.serverTimestamp(),
+          'approvedBy': needsApproval ? null : 'system',
+          'isActive': !needsApproval, // Students are active immediately, teachers need approval
           'createdAt': FieldValue.serverTimestamp(),
         });
 
         // Send email verification
         await user.sendEmailVerification();
 
-        // Show a message to the user to verify their email
+        // Show different messages based on whether approval is needed
+        String message = needsApproval
+          ? "Account created successfully! Your ${_selectedRole} account is pending admin approval. You'll receive an email once approved."
+          : "Verification email sent! Please check your inbox and verify your email to continue.";
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Verification email sent! Please check your inbox and verify your email to continue."),
+            content: Text(message),
+            duration: Duration(seconds: 5),
+            backgroundColor: needsApproval ? Colors.orange : Colors.green,
           ),
         );
 

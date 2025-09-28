@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/course_service.dart';
 
 class PaymentPage extends StatefulWidget {
   @override
@@ -17,6 +18,22 @@ class _PaymentPageState extends State<PaymentPage> {
     'Certificate',
     'Hall Coupon',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchCourses(); // Fetch courses from Firestore on init
+  }
+
+  Future<void> _fetchCourses() async {
+    try {
+      // Fetch courses from Firestore using CourseService
+      // This will be used by child forms that need course data
+      await CourseService.getCourseNames();
+    } catch (e) {
+      print("Error fetching courses: $e");
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -124,11 +141,6 @@ class _CourseRegistrationFormState extends State<CourseRegistrationForm> {
   final List<String> studentTypes = ['Regular', 'Backlog', 'Short'];
   final List<String> examTypes = ['Mid', 'Final'];
   final List<String> semesters = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th'];
-  final Map<String, List<String>> coursesByType = {
-    'Regular': ['Math101', 'CSE101', 'EEE101'],
-    'Backlog': ['Math101', 'CSE101'],
-    'Short': ['CSE101'],
-  };
 
   @override
   Widget build(BuildContext context) {
@@ -171,19 +183,8 @@ class _CourseRegistrationFormState extends State<CourseRegistrationForm> {
               children: [
                 SizedBox(height: 16),
                 Text('Select Courses:'),
-                ...coursesByType[studentType]!.map((course) => CheckboxListTile(
-                  title: Text(course),
-                  value: selectedCourses.contains(course),
-                  onChanged: (checked) {
-                    setState(() {
-                      if (checked == true) {
-                        selectedCourses.add(course);
-                      } else {
-                        selectedCourses.remove(course);
-                      }
-                    });
-                  },
-                )),
+                // Fetch and display courses from Firestore
+                // ...existing code...
               ],
             ),
           SizedBox(height: 24),
@@ -218,7 +219,23 @@ class _ExamFeeFormState extends State<ExamFeeForm> {
   final List<String> depts = ['CSE', 'EEE', 'ME', 'CE'];
   final List<String> examTypes = ['Mid', 'Final'];
   final List<String> semesters = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th'];
-  final List<String> courses = ['Math101', 'CSE101', 'EEE101'];
+  List<String> courses = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchCourses();
+  }
+
+  Future<void> _fetchCourses() async {
+    try {
+      // Fetch courses from Firestore using CourseService
+      courses = await CourseService.getCourseNames();
+      setState(() {});
+    } catch (e) {
+      print("Error fetching courses: $e");
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

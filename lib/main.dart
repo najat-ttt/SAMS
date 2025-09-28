@@ -59,7 +59,7 @@ class LoginPageWrapper extends StatelessWidget {
         if (snapshot.hasData) {
           // User is signed in
           User user = snapshot.data!;
-
+          
           // Fetch user role from Firestore first to check if it's the default admin
           return FutureBuilder<DocumentSnapshot>(
             future: FirebaseFirestore.instance
@@ -87,7 +87,13 @@ class LoginPageWrapper extends StatelessWidget {
               }
 
               String role = firestoreSnapshot.data?.get('role') ?? 'Course Teacher';
-              bool isDefaultAdmin = firestoreSnapshot.data?.get('isDefaultAdmin') ?? false;
+              bool isDefaultAdmin = false;
+
+              // Safely check if isDefaultAdmin field exists before accessing it
+              if (firestoreSnapshot.data?.data() != null) {
+                Map<String, dynamic> userData = firestoreSnapshot.data!.data() as Map<String, dynamic>;
+                isDefaultAdmin = userData.containsKey('isDefaultAdmin') ? userData['isDefaultAdmin'] ?? false : false;
+              }
 
               // Check if email is verified (skip verification check for default admin)
               if (user.emailVerified || isDefaultAdmin) {

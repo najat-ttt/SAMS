@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:excel/excel.dart' as excel_lib;
+import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:open_file/open_file.dart';
@@ -10,37 +10,42 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:typed_data';
+import '../services/course_service.dart';
 import 'web_file_saver.dart'
     if (dart.library.io) 'web_file_saver_stub.dart';
 
-class AttendanceReportPage extends StatefulWidget {
-  const AttendanceReportPage({super.key});
+class ReportsPage extends StatefulWidget {
+  const ReportsPage({super.key});
 
   @override
-  _AttendanceReportPageState createState() => _AttendanceReportPageState();
+  _ReportsPageState createState() => _ReportsPageState();
 }
 
-class _AttendanceReportPageState extends State<AttendanceReportPage> {
+class _ReportsPageState extends State<ReportsPage> {
   String? selectedCourse;
   String? selectedSection;
+  String? selectedSeries; // Add series selection
   bool isLoading = false;
   DateTime startDate = DateTime.now().subtract(const Duration(days: 30));
   DateTime endDate = DateTime.now();
 
-  final List<String> courses = [
-    "Digital Logic Design",
-    "Discrete Mathematics",
-    "Electrical and Electronic Engineering",
-    "Humanities",
-    "Mathematics"
-  ];
+  // Replace hardcoded courses with dynamic list from Firestore
+  List<String> courses = [];
+  bool isLoadingCourses = true;
 
   final List<String> sections = ["A", "B", "C"];
+  final List<String> series = ["20", "21", "22", "23", "24"]; // Add series options
 
   List<Map<String, dynamic>> students = [];
   Map<String, Map<String, String>> attendanceData = {};
   List<String> datesList = [];
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchCourses(); // Fetch courses from Firestore on init
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -86,7 +91,7 @@ class _AttendanceReportPageState extends State<AttendanceReportPage> {
                           Row(
                             children: [
                               Expanded(
-                                flex: 3,
+                                flex: 2,
                                 child: DropdownButtonFormField<String>(
                                   value: selectedCourse,
                                   isExpanded: true,
@@ -134,6 +139,34 @@ class _AttendanceReportPageState extends State<AttendanceReportPage> {
                                   onChanged: (value) {
                                     setState(() {
                                       selectedSection = value;
+                                      _fetchStudents();
+                                    });
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                flex: 2,
+                                child: DropdownButtonFormField<String>(
+                                  value: selectedSeries,
+                                  isExpanded: true,
+                                  decoration: InputDecoration(
+                                    labelText: "Select Series",
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12.0),
+                                    ),
+                                    contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                  ),
+                                  style: TextStyle(fontSize: dropdownFontSize, color: Colors.black),
+                                  items: series.map((series) {
+                                    return DropdownMenuItem(
+                                      value: series,
+                                      child: Text(series),
+                                    );
+                                  }).toList(),
+                                  onChanged: (value) {
+                                    setState(() {
+                                      selectedSeries = value;
                                       _fetchStudents();
                                     });
                                   },
@@ -365,8 +398,35 @@ class _AttendanceReportPageState extends State<AttendanceReportPage> {
     }
   }
 
+  Future<void> _fetchCourses() async {
+    setState(() {
+      isLoadingCourses = true;
+    });
+    try {
+      // Fetch courses from Firestore using CourseService
+      final fetchedCourses = await CourseService.getCourseNames();
+      setState(() {
+        courses = fetchedCourses;
+        isLoadingCourses = false;
+      });
+    } catch (e) {
+      setState(() {
+        courses = [];
+        isLoadingCourses = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error fetching courses: $e")),
+      );
+    }
+  }
+
   Future<void> _fetchStudents() async {
-    if (selectedSection == null) return;
+    if (selectedSection == null || selectedSeries == null) {
+      setState(() {
+        students.clear();
+      });
+      return;
+    }
 
     setState(() {
       isLoading = true;
@@ -374,29 +434,134 @@ class _AttendanceReportPageState extends State<AttendanceReportPage> {
     });
 
     try {
+      print('Fetching students from section-wise structure: students/$selectedSection/section_students for series: $selectedSeries');
+
+      // Use the section-wise structure: students/{section}/section_students
       final querySnapshot = await _firestore
-          .collection('students')
+          .collection('student') // Main collection
+          .doc(selectedSection) // Section document (A, B, C)
+          .collection('section_students') // Students subcollection for this section
+          .orderBy('roll')
+          .get();
+
+      print('Found ${querySnapshot.docs.length} students in section $selectedSection');
+
+      if (querySnapshot.docs.isEmpty) {
+        setState(() {
+          students = [];
+        });
+
+        // If no students in section-wise structure, try fallback to flat structure
+        print('No students found in section-wise structure, trying flat structure...');
+        await _fetchStudentsFromFlatStructure();
+        return;
+      }
+
+      // Filter by series if the roll number pattern matches
+      final filteredDocs = querySnapshot.docs.where((doc) {
+        final data = doc.data();
+        final rollStr = data['roll']?.toString() ?? '';
+        return selectedSeries != null && rollStr.startsWith(selectedSeries!);
+      }).toList();
+
+      if (filteredDocs.isEmpty) {
+        setState(() {
+          students = [];
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("No students found for Series $selectedSeries, Section $selectedSection")),
+        );
+        return;
+      }
+
+      setState(() {
+        students = filteredDocs.map((doc) {
+          final data = doc.data();
+          print('Student data: $data'); // Debug print
+          return {
+            "rollNo": data['roll'] ?? 0,
+            "id": data['roll']?.toString() ?? '0',
+            "name": data['name'] ?? data['studentName'] ?? 'Unknown', // Handle both field names
+            "section": data['section'] ?? selectedSection,
+          };
+        }).toList();
+      });
+
+      print('Loaded ${students.length} students from section-wise structure');
+
+    } catch (e) {
+      print('Error fetching students from section-wise structure: $e'); // Debug print
+      print('Trying fallback to flat structure...');
+      await _fetchStudentsFromFlatStructure();
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  // Fallback method to fetch from flat structure for backward compatibility
+  Future<void> _fetchStudentsFromFlatStructure() async {
+    try {
+      print('Fetching students from flat structure for section: $selectedSection and series: $selectedSeries');
+
+      final querySnapshot = await _firestore
+          .collection('student') // Flat collection
           .where('section', isEqualTo: selectedSection)
           .orderBy('roll')
           .get();
 
+      print('Found ${querySnapshot.docs.length} students in flat structure');
+
+      if (querySnapshot.docs.isEmpty) {
+        setState(() {
+          students = [];
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("No students found for Section $selectedSection")),
+        );
+        return;
+      }
+
+      // Filter by series if the roll number pattern matches
+      final filteredDocs = querySnapshot.docs.where((doc) {
+        final data = doc.data();
+        final rollStr = data['roll']?.toString() ?? '';
+        return selectedSeries != null && rollStr.startsWith(selectedSeries!);
+      }).toList();
+
+      if (filteredDocs.isEmpty) {
+        setState(() {
+          students = [];
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("No students found for Series $selectedSeries, Section $selectedSection")),
+        );
+        return;
+      }
+
       setState(() {
-        students = querySnapshot.docs.map((doc) {
+        students = filteredDocs.map((doc) {
           final data = doc.data();
+          print('Student data from flat structure: $data');
           return {
             "rollNo": data['roll'] ?? 0,
             "id": data['roll']?.toString() ?? '0',
-            "name": data['name'] ?? 'Unknown',
+            "name": data['name'] ?? data['studentName'] ?? 'Unknown', // Handle both field names
+            "section": data['section'] ?? selectedSection,
           };
         }).toList();
       });
+
+      print('Loaded ${students.length} students from flat structure');
+
     } catch (e) {
+      print('Error fetching students from flat structure: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error fetching students: $e")),
       );
-    } finally {
       setState(() {
-        isLoading = false;
+        students = [];
       });
     }
   }

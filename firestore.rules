@@ -1,0 +1,79 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Users collection - allow authenticated users to read all users, write their own data
+    // Admin users can write all user documents
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && (
+        request.auth.uid == userId ||
+        isAdmin()
+      );
+    }
+
+    // Main series collection structure: series/{seriesNumber}/students/{rollNumber}
+    match /series/{seriesId} {
+      // Allow authenticated users to read series documents (e.g., 20, 21, 22)
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && isAdminOrTeacher();
+
+      // Nested students subcollection under each series
+      match /students/{rollNumber} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null && isAdminOrTeacher();
+      }
+    }
+
+    // Courses collection - allow all authenticated users to read, admin/teachers to write
+    match /courses/{courseId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && isAdminOrTeacher();
+    }
+
+    // Course assignments collection
+    match /courseAssignments/{assignmentId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && isAdminOrTeacher();
+    }
+
+    // Attendance sessions
+    match /attendance_sessions/{sessionId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && isTeacherOrAbove();
+      allow update: if request.auth != null && isTeacherOrAbove();
+      allow delete: if request.auth != null && isAdmin();
+    }
+
+    // Attendance records with flexible structure
+    match /attendance_records/{document=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && isTeacherOrAbove();
+    }
+
+    // Allow access to any other collections for authenticated users (fallback)
+    match /{document=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && isAdmin();
+    }
+
+    // Helper functions to check user roles
+    function isAdmin() {
+      return request.auth != null &&
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+    }
+
+    function isTeacherOrAbove() {
+      return request.auth != null &&
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['Admin', 'Department Head', 'Course Advisor', 'Course Teacher'];
+    }
+
+    function isAdminOrTeacher() {
+      return request.auth != null &&
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['Admin', 'Course Teacher', 'Course Advisor', 'Department Head'];
+    }
+  }
+}

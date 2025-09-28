@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'profile_page.dart';
 import 'schedule_page.dart';
 import '../login_page/login_page.dart';
-import 'upload_student_data_page.dart';
-import 'upload_course_details_page.dart';
-import 'assign_course_teacher_page.dart';
+
 
 class CourseAdvisorDashboardPage extends StatelessWidget {
   final String name;
@@ -111,54 +109,6 @@ class CourseAdvisorDashboardPage extends StatelessWidget {
                               email: email,
                               password: "********",
                             ),
-                          ),
-                        );
-                      },
-                      cardSize: cardSize,
-                      iconSize: iconSize,
-                      fontSize: fontSize,
-                      cardPadding: cardPadding,
-                    ),
-                    _buildDashboardCard(
-                      icon: Icons.upload_file,
-                      title: "Upload Student Data",
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const UploadStudentDataPage(),
-                          ),
-                        );
-                      },
-                      cardSize: cardSize,
-                      iconSize: iconSize,
-                      fontSize: fontSize,
-                      cardPadding: cardPadding,
-                    ),
-                    _buildDashboardCard(
-                      icon: Icons.book,
-                      title: "Upload Course Details",
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const UploadCourseDetailsPage(),
-                          ),
-                        );
-                      },
-                      cardSize: cardSize,
-                      iconSize: iconSize,
-                      fontSize: fontSize,
-                      cardPadding: cardPadding,
-                    ),
-                    _buildDashboardCard(
-                      icon: Icons.assignment_ind,
-                      title: "Assign Course Teacher",
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const AssignCourseTeacherPage(),
                           ),
                         );
                       },

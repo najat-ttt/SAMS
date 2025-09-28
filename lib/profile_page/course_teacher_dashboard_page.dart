@@ -157,7 +157,7 @@ class CourseTeacherDashboardPage extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => AttendanceReportPage(),
+                            builder: (context) => ReportsPage(),
                           ),
                         );
                       },
